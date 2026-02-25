@@ -1,4 +1,4 @@
-# 🚀 Welcome to Z.ai Code Scaffold
+# 🚀 Welcome Code Scaffold
 
 A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development.
 
