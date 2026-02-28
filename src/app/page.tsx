@@ -24,12 +24,12 @@ export default function Home() {
   const [mounted, setMounted] = useState(false)
 
   // Fixed costs (Gastos Fijos)
-  const [pricePerKg, setPricePerKg] = useState<number>(20000)
-  const [pricePerKwh, setPricePerKwh] = useState<number>(140)
-  const [consumptionWatts, setConsumptionWatts] = useState<number>(150)
-  const [machineWearHours, setMachineWearHours] = useState<number>(4320)
-  const [replacementPrice, setReplacementPrice] = useState<number>(6000)
-  const [errorMarginPercent, setErrorMarginPercent] = useState<number>(30)
+  const [pricePerKg, setPricePerKg] = useState<number>(30000)
+  const [pricePerKwh, setPricePerKwh] = useState<number>(145)
+  const [consumptionWatts, setConsumptionWatts] = useState<number>(200)
+  const [machineWearHours, setMachineWearHours] = useState<number>(8000)
+  const [replacementPrice, setReplacementPrice] = useState<number>(12000)
+  const [errorMarginPercent, setErrorMarginPercent] = useState<number>(15)
 
   // Piece parameters (Pieza)
   const [printingHours, setPrintingHours] = useState<number>(1.4)
