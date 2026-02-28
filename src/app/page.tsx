@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Calculator, Settings, Package, Zap, Clock, Weight, DollarSign, AlertTriangle, Printer } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Calculator, Settings, Package, Zap, Clock, Weight, DollarSign, AlertTriangle, Printer, Moon, Sun } from 'lucide-react'
 
 interface CalculationResult {
   materialPrice: number
@@ -18,6 +20,9 @@ interface CalculationResult {
 }
 
 export default function Home() {
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
   // Fixed costs (Gastos Fijos)
   const [pricePerKg, setPricePerKg] = useState<number>(20000)
   const [pricePerKwh, setPricePerKwh] = useState<number>(140)
@@ -31,24 +36,19 @@ export default function Home() {
   const [filamentGrams, setFilamentGrams] = useState<number>(67)
   const [profitMultiplier, setProfitMultiplier] = useState<number>(4)
 
+  // Mount effect for theme toggle
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => setMounted(true))
+    return () => cancelAnimationFrame(timer)
+  }, [])
+
   // Results - calculated with useMemo
   const results = useMemo<CalculationResult>(() => {
-    // Material Price = (grams * price_per_kg) / 1000
     const materialPrice = (filamentGrams * pricePerKg) / 1000
-
-    // Electricity Price = ((watts * price_kwh) / 1000) * hours
     const electricityPrice = ((consumptionWatts * pricePerKwh) / 1000) * printingHours
-
-    // Machine Wear = (replacement_price / machine_wear_hours) * printing_hours
     const machineWear = (replacementPrice / machineWearHours) * printingHours
-
-    // Error Margin = (material + electricity + wear) * (error_margin% / 100)
     const errorMargin = (materialPrice + electricityPrice + machineWear) * (errorMarginPercent / 100)
-
-    // Total Cost = sum of all above
     const totalCost = materialPrice + electricityPrice + machineWear + errorMargin
-
-    // Final Price = total_cost * profit_multiplier
     const finalPrice = totalCost * profitMultiplier
 
     return {
@@ -70,14 +70,24 @@ export default function Home() {
     }).format(value)
   }
 
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+  }
+
+  const isDark = mounted && resolvedTheme === 'dark'
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Printer className="h-10 w-10 text-primary" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold text-primary">
               Calculadora de Impresión 3D
             </h1>
           </div>
@@ -86,12 +96,36 @@ export default function Home() {
           </p>
         </div>
 
+        {/* Action Buttons */}
+        <div className="flex justify-center gap-3 mb-6 print:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleTheme}
+            title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          >
+            {isDark ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handlePrint}
+            className="flex items-center gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            Imprimir
+          </Button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - Inputs */}
           <div className="space-y-6">
             {/* Fixed Costs Card */}
-            <Card className="border-2 border-primary/20 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-t-lg">
+            <Card className="border-2 border-primary/20 shadow-lg">
+              <CardHeader className="bg-primary/5 rounded-t-lg">
                 <div className="flex items-center gap-2">
                   <Settings className="h-5 w-5 text-primary" />
                   <CardTitle className="text-xl">Gastos Fijos</CardTitle>
@@ -190,8 +224,8 @@ export default function Home() {
             </Card>
 
             {/* Piece Parameters Card */}
-            <Card className="border-2 border-emerald-500/20 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 rounded-t-lg">
+            <Card className="border-2 border-emerald-500/20 shadow-lg">
+              <CardHeader className="bg-emerald-500/5 rounded-t-lg">
                 <div className="flex items-center gap-2">
                   <Package className="h-5 w-5 text-emerald-600" />
                   <CardTitle className="text-xl">Parámetros de la Pieza</CardTitle>
@@ -254,8 +288,8 @@ export default function Home() {
           {/* Right Column - Results */}
           <div className="space-y-6">
             {/* Results Card */}
-            <Card className="border-2 border-primary/20 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-t-lg">
+            <Card className="border-2 border-primary/20 shadow-lg">
+              <CardHeader className="bg-primary/5 rounded-t-lg">
                 <div className="flex items-center gap-2">
                   <Calculator className="h-5 w-5 text-primary" />
                   <CardTitle className="text-xl">Resultados del Cálculo</CardTitle>
@@ -267,7 +301,7 @@ export default function Home() {
               <CardContent className="pt-6">
                 <div className="space-y-4">
                   {/* Material Price */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-blue-500" />
                       <span className="text-sm font-medium">Precio Material</span>
@@ -278,7 +312,7 @@ export default function Home() {
                   </div>
 
                   {/* Electricity Price */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-yellow-500" />
                       <span className="text-sm font-medium">Precio Luz</span>
@@ -289,9 +323,9 @@ export default function Home() {
                   </div>
 
                   {/* Machine Wear */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
-                      <Settings className="h-4 w-4 text-gray-500" />
+                      <Settings className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">Desgaste de Máquina</span>
                     </div>
                     <Badge variant="secondary" className="text-sm font-mono">
@@ -300,7 +334,7 @@ export default function Home() {
                   </div>
 
                   {/* Error Margin */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4 text-orange-500" />
                       <span className="text-sm font-medium">Margen de Error</span>
@@ -313,7 +347,7 @@ export default function Home() {
                   <Separator className="my-4" />
 
                   {/* Total Cost */}
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20">
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-5 w-5 text-primary" />
                       <span className="font-semibold">COSTO TOTAL</span>
@@ -327,11 +361,11 @@ export default function Home() {
             </Card>
 
             {/* Final Price Card */}
-            <Card className="border-2 border-emerald-500/30 shadow-xl bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-slate-900">
-              <CardHeader className="bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 rounded-t-lg">
+            <Card className="border-2 border-emerald-500/30 shadow-xl bg-emerald-500/5">
+              <CardHeader className="bg-emerald-500/10 rounded-t-lg">
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-6 w-6 text-emerald-600" />
-                  <CardTitle className="text-2xl text-emerald-700 dark:text-emerald-400">
+                  <CardTitle className="text-2xl text-emerald-600">
                     TOTAL A COBRAR
                   </CardTitle>
                 </div>
@@ -341,7 +375,7 @@ export default function Home() {
               </CardHeader>
               <CardContent className="pt-6">
                 <div className="text-center py-6">
-                  <div className="text-5xl font-bold text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+                  <div className="text-5xl font-bold text-emerald-600 font-mono tracking-tight">
                     {formatCurrency(results.finalPrice)}
                   </div>
                   <p className="text-sm text-muted-foreground mt-3">
@@ -351,15 +385,15 @@ export default function Home() {
 
                 {/* Quick Stats */}
                 <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div className="text-center p-3 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-emerald-200 dark:border-emerald-800">
+                  <div className="text-center p-3 rounded-lg bg-background border border-emerald-200 dark:border-emerald-800">
                     <div className="text-xs text-muted-foreground uppercase tracking-wider">Costo por Hora</div>
-                    <div className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
+                    <div className="text-lg font-semibold text-emerald-600">
                       {formatCurrency(results.totalCost / printingHours)}
                     </div>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-emerald-200 dark:border-emerald-800">
+                  <div className="text-center p-3 rounded-lg bg-background border border-emerald-200 dark:border-emerald-800">
                     <div className="text-xs text-muted-foreground uppercase tracking-wider">Costo por Gramo</div>
-                    <div className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
+                    <div className="text-lg font-semibold text-emerald-600">
                       {formatCurrency(results.totalCost / filamentGrams)}
                     </div>
                   </div>
@@ -368,10 +402,10 @@ export default function Home() {
             </Card>
 
             {/* Formula Reference */}
-            <Card className="border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+            <Card className="border border-border bg-muted/30">
               <CardContent className="pt-4 pb-4">
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <p><strong>Fórmulas de cálculo:</strong></p>
+                  <p className="font-semibold text-foreground">Fórmulas de cálculo:</p>
                   <p>• Material = (Gramos × Precio KG) ÷ 1000</p>
                   <p>• Electricidad = (Watts × Precio KWh ÷ 1000) × Horas</p>
                   <p>• Desgaste = (Precio Repuestos ÷ Vida Útil) × Horas</p>
@@ -384,7 +418,7 @@ export default function Home() {
         </div>
 
         {/* Footer */}
-        <footer className="mt-12 text-center text-sm text-muted-foreground">
+        <footer className="mt-12 text-center text-sm text-muted-foreground print:hidden">
           <p>Calculadora de Precios para Impresión 3D</p>
         </footer>
       </div>

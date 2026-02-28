@@ -120,3 +120,38 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Ensure cards have visible borders when printing */
+  [class*="Card"] {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+  }
+  
+  /* Force light theme for printing */
+  .dark {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+  }
+  
+  /* Hide gradients for printing */
+  [class*="bg-gradient"] {
+    background: white !important;
+  }
+}
