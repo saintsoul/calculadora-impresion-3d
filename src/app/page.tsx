@@ -85,12 +85,9 @@ export default function Home() {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Printer className="h-10 w-10 text-primary" />
-            <h1 className="text-4xl font-bold text-primary">
-              Calculadora de Impresión 3D
-            </h1>
-          </div>
+          <h1 className="text-4xl font-bold text-primary mb-4">
+            Calculadora de Impresión 3D
+          </h1>
           <p className="text-muted-foreground text-lg">
             Calcula el precio final de tus piezas impresas en 3D de forma precisa
           </p>
