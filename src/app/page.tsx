@@ -1,67 +1,89 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
-import { useTheme } from 'next-themes'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Calculator, Settings, Package, Zap, Clock, Weight, DollarSign, AlertTriangle, Printer, Moon, Sun } from 'lucide-react'
+import { Calculator, Settings, Package, DollarSign, Clock, Zap, Weight, TrendingUp, Truck, Mail, Plus } from 'lucide-react'
 
-interface CalculationResult {
-  materialPrice: number
-  electricityPrice: number
-  machineWear: number
-  errorMargin: number
-  totalCost: number
-  finalPrice: number
+interface GastosFijos {
+  precioKG: number
+  precioKwh: number
+  consumoHora: number
+  desgasteMaquina: number
+  precioRepuestos: number
+  margenError: number
+}
+
+interface DatosPieza {
+  horasImpresion: number
+  gramosFilamento: number
+  margenGanancia: number
+  envioDomicilio: number
+  envioCorreo: number
+  extras: number
+}
+
+interface Resultados {
+  precioMaterial: number
+  precioLuz: number
+  desgasteMaquina: number
+  margenErrorCalculado: number
+  costoTotal: number
+  totalCobrar: number
 }
 
 export default function Home() {
-  const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const [gastosFijos, setGastosFijos] = useState<GastosFijos>({
+    precioKG: 28000,
+    precioKwh: 145,
+    consumoHora: 200,
+    desgasteMaquina: 8000,
+    precioRepuestos: 12000,
+    margenError: 15
+  })
 
-  // Fixed costs (Gastos Fijos)
-  const [pricePerKg, setPricePerKg] = useState<number>(30000)
-  const [pricePerKwh, setPricePerKwh] = useState<number>(145)
-  const [consumptionWatts, setConsumptionWatts] = useState<number>(200)
-  const [machineWearHours, setMachineWearHours] = useState<number>(8000)
-  const [replacementPrice, setReplacementPrice] = useState<number>(12000)
-  const [errorMarginPercent, setErrorMarginPercent] = useState<number>(15)
+  const [datosPieza, setDatosPieza] = useState<DatosPieza>({
+    horasImpresion: 1.4,
+    gramosFilamento: 67,
+    margenGanancia: 4,
+    envioDomicilio: 0,
+    envioCorreo: 0,
+    extras: 0
+  })
 
-  // Piece parameters (Pieza)
-  const [printingHours, setPrintingHours] = useState<number>(1.4)
-  const [filamentGrams, setFilamentGrams] = useState<number>(67)
-  const [profitMultiplier, setProfitMultiplier] = useState<number>(4)
+  const resultados = useMemo<Resultados>(() => {
+    // Precio Material = (Gramos * PrecioKG) / 1000
+    const precioMaterial = (datosPieza.gramosFilamento * gastosFijos.precioKG) / 1000
 
-  // Mount effect for theme toggle
-  useEffect(() => {
-    const timer = requestAnimationFrame(() => setMounted(true))
-    return () => cancelAnimationFrame(timer)
-  }, [])
+    // Precio Luz = ((ConsumoHora * PrecioKwh) / 1000) * HorasImpresion
+    const precioLuz = ((gastosFijos.consumoHora * gastosFijos.precioKwh) / 1000) * datosPieza.horasImpresion
 
-  // Results - calculated with useMemo
-  const results = useMemo<CalculationResult>(() => {
-    const materialPrice = (filamentGrams * pricePerKg) / 1000
-    const electricityPrice = ((consumptionWatts * pricePerKwh) / 1000) * printingHours
-    const machineWear = (replacementPrice / machineWearHours) * printingHours
-    const errorMargin = (materialPrice + electricityPrice + machineWear) * (errorMarginPercent / 100)
-    const totalCost = materialPrice + electricityPrice + machineWear + errorMargin
-    const finalPrice = totalCost * profitMultiplier
+    // Desgaste Maquina = (PrecioRepuestos / HorasDesgaste) * HorasImpresion
+    const desgasteMaquina = (gastosFijos.precioRepuestos / gastosFijos.desgasteMaquina) * datosPieza.horasImpresion
+
+    // Margen de Error = (PrecioMaterial + PrecioLuz + Desgaste) * (MargenError% / 100)
+    const margenErrorCalculado = (precioMaterial + precioLuz + desgasteMaquina) * (gastosFijos.margenError / 100)
+
+    // Costo Total = Suma de todos los conceptos + envíos + extras
+    const costoTotal = precioMaterial + precioLuz + desgasteMaquina + margenErrorCalculado + datosPieza.envioDomicilio + datosPieza.envioCorreo + datosPieza.extras
+
+    // Total a Cobrar = Costo * Margen de Ganancia
+    const totalCobrar = costoTotal * datosPieza.margenGanancia
 
     return {
-      materialPrice,
-      electricityPrice,
-      machineWear,
-      errorMargin,
-      totalCost,
-      finalPrice
+      precioMaterial,
+      precioLuz,
+      desgasteMaquina,
+      margenErrorCalculado,
+      costoTotal,
+      totalCobrar
     }
-  }, [pricePerKg, pricePerKwh, consumptionWatts, machineWearHours, replacementPrice, errorMarginPercent, printingHours, filamentGrams, profitMultiplier])
+  }, [gastosFijos, datosPieza])
 
-  const formatCurrency = (value: number): string => {
+  const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
       currency: 'ARS',
@@ -70,353 +92,410 @@ export default function Home() {
     }).format(value)
   }
 
-  const handlePrint = () => {
-    window.print()
+  const updateGastosFijos = (field: keyof GastosFijos, value: string) => {
+    const numValue = parseFloat(value) || 0
+    setGastosFijos(prev => ({ ...prev, [field]: numValue }))
   }
 
-  const toggleTheme = () => {
-    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+  const updateDatosPieza = (field: keyof DatosPieza, value: string) => {
+    const numValue = parseFloat(value) || 0
+    setDatosPieza(prev => ({ ...prev, [field]: numValue }))
   }
-
-  const isDark = mounted && resolvedTheme === 'dark'
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-4">
-            Calculadora de Impresión 3D
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Calcula el precio final de tus piezas impresas en 3D de forma precisa
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <Calculator className="h-8 w-8 text-emerald-600" />
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100">
+              Calculadora de Costos 3D
+            </h1>
+          </div>
+          <p className="text-slate-600 dark:text-slate-400">
+            Calcula el precio de venta de tus piezas impresas en 3D
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-center gap-3 mb-6 print:hidden">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleTheme}
-            title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-          >
-            {isDark ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handlePrint}
-            className="flex items-center gap-2"
-          >
-            <Printer className="h-4 w-4" />
-            Imprimir
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Inputs */}
-          <div className="space-y-6">
-            {/* Fixed Costs Card */}
-            <Card className="border-2 border-primary/20 shadow-lg">
-              <CardHeader className="bg-primary/5 rounded-t-lg">
-                <div className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-xl">Gastos Fijos</CardTitle>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Columna izquierda - Gastos Fijos */}
+          <Card className="lg:col-span-1 shadow-lg border-slate-200 dark:border-slate-800">
+            <CardHeader className="bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-t-lg">
+              <div className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                <CardTitle className="text-lg">Gastos Fijos</CardTitle>
+              </div>
+              <CardDescription className="text-slate-300">
+                Configuración general de costos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="precioKG" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Weight className="h-4 w-4 text-emerald-600" />
+                  Precio por KG de filamento
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                  <Input
+                    id="precioKG"
+                    type="number"
+                    value={gastosFijos.precioKG}
+                    onChange={(e) => updateGastosFijos('precioKG', e.target.value)}
+                    className="pl-8"
+                  />
                 </div>
-                <CardDescription>
-                  Parámetros de costo base para el cálculo
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="priceKg" className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      Precio del KG de Filamento
-                    </Label>
-                    <Input
-                      id="priceKg"
-                      type="number"
-                      value={pricePerKg}
-                      onChange={(e) => setPricePerKg(Number(e.target.value))}
-                      className="text-right"
-                    />
-                  </div>
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="priceKwh" className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-muted-foreground" />
-                      Precio del KWh
-                    </Label>
-                    <Input
-                      id="priceKwh"
-                      type="number"
-                      value={pricePerKwh}
-                      onChange={(e) => setPricePerKwh(Number(e.target.value))}
-                      className="text-right"
-                    />
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="precioKwh" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Zap className="h-4 w-4 text-yellow-500" />
+                  Precio por Kwh
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                  <Input
+                    id="precioKwh"
+                    type="number"
+                    value={gastosFijos.precioKwh}
+                    onChange={(e) => updateGastosFijos('precioKwh', e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="consumption" className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-yellow-500" />
-                      Consumo Real (Watts/hora)
-                    </Label>
-                    <Input
-                      id="consumption"
-                      type="number"
-                      value={consumptionWatts}
-                      onChange={(e) => setConsumptionWatts(Number(e.target.value))}
-                      className="text-right"
-                    />
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="consumoHora" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <TrendingUp className="h-4 w-4 text-blue-500" />
+                  Consumo por hora (W)
+                </Label>
+                <Input
+                  id="consumoHora"
+                  type="number"
+                  value={gastosFijos.consumoHora}
+                  onChange={(e) => updateGastosFijos('consumoHora', e.target.value)}
+                />
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="wearHours" className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      Vida Útil Máquina (horas)
-                    </Label>
-                    <Input
-                      id="wearHours"
-                      type="number"
-                      value={machineWearHours}
-                      onChange={(e) => setMachineWearHours(Number(e.target.value))}
-                      className="text-right"
-                    />
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="desgasteMaquina" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Clock className="h-4 w-4 text-orange-500" />
+                  Desgaste máquina (horas)
+                </Label>
+                <Input
+                  id="desgasteMaquina"
+                  type="number"
+                  value={gastosFijos.desgasteMaquina}
+                  onChange={(e) => updateGastosFijos('desgasteMaquina', e.target.value)}
+                />
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="replacement" className="flex items-center gap-2">
-                      <Settings className="h-4 w-4 text-muted-foreground" />
-                      Precio de Repuestos
-                    </Label>
-                    <Input
-                      id="replacement"
-                      type="number"
-                      value={replacementPrice}
-                      onChange={(e) => setReplacementPrice(Number(e.target.value))}
-                      className="text-right"
-                    />
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="precioRepuestos" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Settings className="h-4 w-4 text-red-500" />
+                  Precio repuestos
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                  <Input
+                    id="precioRepuestos"
+                    type="number"
+                    value={gastosFijos.precioRepuestos}
+                    onChange={(e) => updateGastosFijos('precioRepuestos', e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="errorMargin" className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-orange-500" />
-                      % Margen de Error
-                    </Label>
+              <div className="space-y-2">
+                <Label htmlFor="margenError" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <TrendingUp className="h-4 w-4 text-purple-500" />
+                  % Margen de error
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="margenError"
+                    type="number"
+                    value={gastosFijos.margenError}
+                    onChange={(e) => updateGastosFijos('margenError', e.target.value)}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">%</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Columna central - Datos de la Pieza */}
+          <Card className="lg:col-span-1 shadow-lg border-slate-200 dark:border-slate-800">
+            <CardHeader className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-t-lg">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                <CardTitle className="text-lg">Datos de la Pieza</CardTitle>
+              </div>
+              <CardDescription className="text-emerald-100">
+                Información específica de cada impresión
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="horasImpresion" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Clock className="h-4 w-4 text-emerald-600" />
+                  Horas de impresión
+                </Label>
+                <Input
+                  id="horasImpresion"
+                  type="number"
+                  step="0.1"
+                  value={datosPieza.horasImpresion}
+                  onChange={(e) => updateDatosPieza('horasImpresion', e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gramosFilamento" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Weight className="h-4 w-4 text-blue-500" />
+                  Gramos de filamento
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="gramosFilamento"
+                    type="number"
+                    value={datosPieza.gramosFilamento}
+                    onChange={(e) => updateDatosPieza('gramosFilamento', e.target.value)}
+                    className="pr-10"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">g</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="margenGanancia" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <TrendingUp className="h-4 w-4 text-emerald-600" />
+                  Margen de ganancia (x)
+                </Label>
+                <Input
+                  id="margenGanancia"
+                  type="number"
+                  step="0.1"
+                  value={datosPieza.margenGanancia}
+                  onChange={(e) => updateDatosPieza('margenGanancia', e.target.value)}
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Multiplicador sobre el costo base (ej: 4 = 400%)
+                </p>
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Envíos y Extras */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-slate-700 dark:text-slate-300 text-sm">Envíos y Extras</h4>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="envioDomicilio" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Truck className="h-4 w-4 text-blue-600" />
+                    Envío a domicilio
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
                     <Input
-                      id="errorMargin"
+                      id="envioDomicilio"
                       type="number"
-                      value={errorMarginPercent}
-                      onChange={(e) => setErrorMarginPercent(Number(e.target.value))}
-                      className="text-right"
+                      value={datosPieza.envioDomicilio}
+                      onChange={(e) => updateDatosPieza('envioDomicilio', e.target.value)}
+                      className="pl-8"
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Piece Parameters Card */}
-            <Card className="border-2 border-emerald-500/20 shadow-lg">
-              <CardHeader className="bg-emerald-500/5 rounded-t-lg">
-                <div className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-emerald-600" />
-                  <CardTitle className="text-xl">Parámetros de la Pieza</CardTitle>
-                </div>
-                <CardDescription>
-                  Datos específicos de la pieza a imprimir
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="hours" className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      Horas de Impresión
-                    </Label>
+                <div className="space-y-2">
+                  <Label htmlFor="envioCorreo" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Mail className="h-4 w-4 text-amber-600" />
+                    Envío por correo
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
                     <Input
-                      id="hours"
+                      id="envioCorreo"
                       type="number"
-                      step="0.1"
-                      value={printingHours}
-                      onChange={(e) => setPrintingHours(Number(e.target.value))}
-                      className="text-right"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="grams" className="flex items-center gap-2">
-                      <Weight className="h-4 w-4 text-muted-foreground" />
-                      Gramos de Filamento
-                    </Label>
-                    <Input
-                      id="grams"
-                      type="number"
-                      step="0.1"
-                      value={filamentGrams}
-                      onChange={(e) => setFilamentGrams(Number(e.target.value))}
-                      className="text-right"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="multiplier" className="flex items-center gap-2">
-                      <Calculator className="h-4 w-4 text-muted-foreground" />
-                      Margen de Ganancia (x)
-                    </Label>
-                    <Input
-                      id="multiplier"
-                      type="number"
-                      step="0.1"
-                      value={profitMultiplier}
-                      onChange={(e) => setProfitMultiplier(Number(e.target.value))}
-                      className="text-right"
+                      value={datosPieza.envioCorreo}
+                      onChange={(e) => updateDatosPieza('envioCorreo', e.target.value)}
+                      className="pl-8"
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
 
-          {/* Right Column - Results */}
-          <div className="space-y-6">
-            {/* Results Card */}
-            <Card className="border-2 border-primary/20 shadow-lg">
-              <CardHeader className="bg-primary/5 rounded-t-lg">
-                <div className="flex items-center gap-2">
-                  <Calculator className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-xl">Resultados del Cálculo</CardTitle>
+                <div className="space-y-2">
+                  <Label htmlFor="extras" className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Plus className="h-4 w-4 text-purple-600" />
+                    Extras
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                    <Input
+                      id="extras"
+                      type="number"
+                      value={datosPieza.extras}
+                      onChange={(e) => updateDatosPieza('extras', e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
                 </div>
-                <CardDescription>
-                  Desglose detallado del precio
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  {/* Material Price */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Resumen rápido */}
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold text-slate-700 dark:text-slate-300 text-sm">Resumen rápido</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-slate-600 dark:text-slate-400">Tiempo:</div>
+                  <div className="font-medium text-slate-800 dark:text-slate-200">
+                    {datosPieza.horasImpresion} hs
+                  </div>
+                  <div className="text-slate-600 dark:text-slate-400">Material:</div>
+                  <div className="font-medium text-slate-800 dark:text-slate-200">
+                    {datosPieza.gramosFilamento} g
+                  </div>
+                  <div className="text-slate-600 dark:text-slate-400">Ganancia:</div>
+                  <div className="font-medium text-slate-800 dark:text-slate-200">
+                    x{datosPieza.margenGanancia}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Columna derecha - Resultados */}
+          <Card className="lg:col-span-1 shadow-lg border-slate-200 dark:border-slate-800">
+            <CardHeader className="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-t-lg">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                <CardTitle className="text-lg">Resultados</CardTitle>
+              </div>
+              <CardDescription className="text-amber-100">
+                Desglose detallado de costos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {/* Precio Material */}
+                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Weight className="h-4 w-4 text-emerald-600" />
+                    <span className="text-slate-600 dark:text-slate-400">Precio Material</span>
+                  </div>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {formatCurrency(resultados.precioMaterial)}
+                  </span>
+                </div>
+
+                {/* Precio Luz */}
+                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-yellow-500" />
+                    <span className="text-slate-600 dark:text-slate-400">Precio Luz</span>
+                  </div>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {formatCurrency(resultados.precioLuz)}
+                  </span>
+                </div>
+
+                {/* Desgaste Máquina */}
+                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-4 w-4 text-red-500" />
+                    <span className="text-slate-600 dark:text-slate-400">Desgaste Máquina</span>
+                  </div>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {formatCurrency(resultados.desgasteMaquina)}
+                  </span>
+                </div>
+
+                {/* Margen de Error */}
+                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-purple-500" />
+                    <span className="text-slate-600 dark:text-slate-400">Margen de Error</span>
+                  </div>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {formatCurrency(resultados.margenErrorCalculado)}
+                  </span>
+                </div>
+
+                <Separator className="my-2" />
+
+                {/* Envío a Domicilio */}
+                {datosPieza.envioDomicilio > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium">Precio Material</span>
+                      <Truck className="h-4 w-4 text-blue-600" />
+                      <span className="text-slate-600 dark:text-slate-400">Envío a Domicilio</span>
                     </div>
-                    <Badge variant="secondary" className="text-sm font-mono">
-                      {formatCurrency(results.materialPrice)}
-                    </Badge>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {formatCurrency(datosPieza.envioDomicilio)}
+                    </span>
                   </div>
+                )}
 
-                  {/* Electricity Price */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                {/* Envío por Correo */}
+                {datosPieza.envioCorreo > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-yellow-500" />
-                      <span className="text-sm font-medium">Precio Luz</span>
+                      <Mail className="h-4 w-4 text-amber-600" />
+                      <span className="text-slate-600 dark:text-slate-400">Envío por Correo</span>
                     </div>
-                    <Badge variant="secondary" className="text-sm font-mono">
-                      {formatCurrency(results.electricityPrice)}
-                    </Badge>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {formatCurrency(datosPieza.envioCorreo)}
+                    </span>
                   </div>
+                )}
 
-                  {/* Machine Wear */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                {/* Extras */}
+                {datosPieza.extras > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <Settings className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Desgaste de Máquina</span>
+                      <Plus className="h-4 w-4 text-purple-600" />
+                      <span className="text-slate-600 dark:text-slate-400">Extras</span>
                     </div>
-                    <Badge variant="secondary" className="text-sm font-mono">
-                      {formatCurrency(results.machineWear)}
-                    </Badge>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {formatCurrency(datosPieza.extras)}
+                    </span>
                   </div>
+                )}
 
-                  {/* Error Margin */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-orange-500" />
-                      <span className="text-sm font-medium">Margen de Error</span>
-                    </div>
-                    <Badge variant="secondary" className="text-sm font-mono">
-                      {formatCurrency(results.errorMargin)}
-                    </Badge>
-                  </div>
+                <Separator className="my-2" />
 
-                  <Separator className="my-4" />
-
-                  {/* Total Cost */}
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-primary" />
-                      <span className="font-semibold">COSTO TOTAL</span>
-                    </div>
-                    <Badge className="text-lg font-mono bg-primary/20 text-primary hover:bg-primary/30">
-                      {formatCurrency(results.totalCost)}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Final Price Card */}
-            <Card className="border-2 border-emerald-500/30 shadow-xl bg-emerald-500/5">
-              <CardHeader className="bg-emerald-500/10 rounded-t-lg">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-6 w-6 text-emerald-600" />
-                  <CardTitle className="text-2xl text-emerald-600">
-                    TOTAL A COBRAR
-                  </CardTitle>
-                </div>
-                <CardDescription className="text-emerald-600/80">
-                  Precio final con margen de ganancia x{profitMultiplier}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="text-center py-6">
-                  <div className="text-5xl font-bold text-emerald-600 font-mono tracking-tight">
-                    {formatCurrency(results.finalPrice)}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-3">
-                    = {formatCurrency(results.totalCost)} × {profitMultiplier}
-                  </p>
+                {/* Costo Total */}
+                <div className="flex justify-between items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-2 border-blue-200 dark:border-blue-800">
+                  <span className="text-lg font-semibold text-blue-700 dark:text-blue-300">COSTO</span>
+                  <span className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                    {formatCurrency(resultados.costoTotal)}
+                  </span>
                 </div>
 
-                {/* Quick Stats */}
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div className="text-center p-3 rounded-lg bg-background border border-emerald-200 dark:border-emerald-800">
-                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Costo por Hora</div>
-                    <div className="text-lg font-semibold text-emerald-600">
-                      {formatCurrency(results.totalCost / printingHours)}
-                    </div>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-background border border-emerald-200 dark:border-emerald-800">
-                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Costo por Gramo</div>
-                    <div className="text-lg font-semibold text-emerald-600">
-                      {formatCurrency(results.totalCost / filamentGrams)}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                <Separator className="my-2" />
 
-            {/* Formula Reference */}
-            <Card className="border border-border bg-muted/30">
-              <CardContent className="pt-4 pb-4">
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p className="font-semibold text-foreground">Fórmulas de cálculo:</p>
-                  <p>• Material = (Gramos × Precio KG) ÷ 1000</p>
-                  <p>• Electricidad = (Watts × Precio KWh ÷ 1000) × Horas</p>
-                  <p>• Desgaste = (Precio Repuestos ÷ Vida Útil) × Horas</p>
-                  <p>• Margen Error = (Material + Luz + Desgaste) × % Error</p>
-                  <p>• Total = Costo × Margen Ganancia</p>
+                {/* Total a Cobrar */}
+                <div className="p-6 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl text-center shadow-lg">
+                  <div className="text-emerald-100 text-sm mb-1">TOTAL A COBRAR</div>
+                  <div className="text-3xl font-bold text-white">
+                    {formatCurrency(resultados.totalCobrar)}
+                  </div>
+                  <Badge variant="secondary" className="mt-2 bg-white/20 text-white hover:bg-white/30">
+                    x{datosPieza.margenGanancia} margen aplicado
+                  </Badge>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Footer */}
-        <footer className="mt-12 text-center text-sm text-muted-foreground print:hidden">
-          <p>Calculadora de Precios para Impresión 3D</p>
+        <footer className="mt-12 text-center text-slate-500 dark:text-slate-400 text-sm">
+          <p>Calculadora de Costos para Impresión 3D</p>
         </footer>
       </div>
     </div>
